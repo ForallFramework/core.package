@@ -45,7 +45,7 @@ class PackageDescriptor
   /**
    * Set some initial values.
    *
-   * @param array $propertyValues An array like `[$propertyName => $propertyValue, ..]`.
+   * @param array $propertyValues An array like `[$propertyName => $propertyValue, ..].
    */
   public function __construct(array $propertyValues = [])
   {

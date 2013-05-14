@@ -42,7 +42,7 @@ trait SingletonTraits
    * 
    * @throws SingletonException If self::$instance has been set.
    */
-  public function __construct()
+  private function __construct()
   {
     
     //Throw an exception if the instance already exists.

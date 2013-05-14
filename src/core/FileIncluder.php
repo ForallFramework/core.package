@@ -42,14 +42,11 @@ class FileIncluder
    * @see FileIncluder::setContext() for details about what the `$context` parameter is for.
    * 
    */ 
-  public function __construct($flags = 0, $context = null)
+  public function __construct($FLAGS = 0, $context = null)
   {
     
     //Create a reference to the default environment for the closure to use.
     $DEFAULTENV =& $this->env;
-    
-    //Pre-calculate which function we will use for the including based on the given flags.
-    $FLAGS = $flags;
     
     //Create the including closure.
     $this->includer = function($INCLUDEFILE, $USERENV=[])use(&$DEFAULTENV, $FLAGS){

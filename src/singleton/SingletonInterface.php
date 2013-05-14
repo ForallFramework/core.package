@@ -25,6 +25,6 @@ interface SingletonInterface
    * 
    * @throws SingletonException If self::$instance has been set.
    */
-  public function __construct();
+  function __construct();
   
 }
