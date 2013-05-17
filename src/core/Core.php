@@ -328,10 +328,8 @@ class Core implements SingletonInterface
   public function getPackageByName($name)
   {
     
-    //Add the Forall vendor name to the name, if it's lacking one.
-    if(strpbrk('.\\/_', $name)===false){
-      $name = "forall.$name";
-    }
+    //Normalize the package name.
+    $this->normalizePackageName($name);
     
     //Iterate over the packages to find one with the given name.
     foreach($this->packages as $package){
@@ -342,6 +340,26 @@ class Core implements SingletonInterface
     
     //All packages have been iterated without result. Return false.
     return false;
+    
+  }
+  
+  /**
+   * Automatically prepends our vendor name to the package name if it's lacking one.
+   *
+   * @param  string $name The given name of the package.
+   *
+   * @return string       The normalize package name.
+   */
+  public function normalizePackageName($name)
+  {
+    
+    //Add the Forall vendor name to the name, if it's lacking one.
+    if(strpbrk('.\\/_', $name)===false){
+      $name = "forall.$name";
+    }
+    
+    //Return the normalized name.
+    return $name;
     
   }
   
@@ -385,7 +403,6 @@ class Core implements SingletonInterface
    */
   public function parseJsonFromFile($file, $recache=false)
   {
-    
     
     //Check the cache if it's wanted and present.
     if($recache === false && array_key_exists($file, $this->cachedJSON)){
