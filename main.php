@@ -1,4 +1,4 @@
-<?php namespace core;
+<?php namespace forall\core;
 
 //Include functions.
 require 'src/functions.php';
@@ -14,3 +14,7 @@ $core->gatherPackages();
 
 //Include other packages' main-files.
 $core->includeMainFiles();
+
+
+#TEMP: Set response code to 200.
+http_response_code(200);

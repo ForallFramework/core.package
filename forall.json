@@ -1,0 +1,15 @@
+{
+  "name": "forall.core",
+  "title": "Forall core package.",
+  "description": "Serves as a main entry point, simple package loader and singleton container.",
+  "type": "manual",
+  "versions": [
+    {
+      "version": "0.1",
+      "date": "2013-05-10",
+      "description": "First significant version.",
+      "changes": []
+    }
+  ],
+  "dependencies": []
+}

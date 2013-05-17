@@ -1,23 +1,23 @@
 <?php
 
 /**
- * @package core
+ * @package forall\core
  * @version 0.1
  * @author Avaq <aldwin.vlasblom@gmail.com>
  */
-namespace core
+namespace forall\core
 {
   
   /**
    * Loads the instance stored in the Core class under the given key.
    * 
-   * Calling this function is short for `core\Core::getInstance()->loadInstance($key);`.
+   * Calling this function is short for `core\Core::getInstance()->loadInstance($key)`.
    *
-   * @param  string        $key The key of the instance to look for.
+   * @param  string       $key The key of the instance to look for.
    *
    * @return AbstractCore      The instance.
    */
-  function fa($key)
+  function forall($key)
   {
     
     return core\Core::getInstance()->loadInstance($key);
@@ -30,12 +30,11 @@ namespace core
 namespace
 {
   
-  //Export the "fa" function to the global name space.
-  if(!function_exists("fa")){
-    function fa($key){
-      return \core\fa($key);
+  //Export the "forall" function to the global name space.
+  if(!function_exists("forall")){
+    function forall($key){
+      return \forall\core\forall($key);
     }
   }
   
 }
-

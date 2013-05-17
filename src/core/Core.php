@@ -1,21 +1,21 @@
 <?php
 
 /**
- * @package core
+ * @package forall\core
  * @version 0.1
  * @author Avaq <aldwin.vlasblom@gmail.com>
  */
-namespace core\core;
+namespace forall\core\core;
 
-require_once "AbstractCore.php";
-require_once "CoreException.php";
-require_once "PackageDescriptor.php";
-require_once "FileIncluder.php";
+require_once __DIR__."/AbstractCore.php";
+require_once __DIR__."/CoreException.php";
+require_once __DIR__."/PackageDescriptor.php";
+require_once __DIR__."/FileIncluder.php";
 require_once __DIR__."/../singleton/SingletonTraits.php";
 require_once __DIR__."/../singleton/SingletonInterface.php";
 
-use \core\singleton\SingletonTraits;
-use \core\singleton\SingletonInterface;
+use \forall\core\singleton\SingletonTraits;
+use \forall\core\singleton\SingletonInterface;
 use \Closure;
 
 /**
@@ -33,12 +33,6 @@ class Core implements SingletonInterface
   use SingletonTraits{
     __construct as private singletonConstructor;
   }
-  
-  /**
-   * An array of settings.
-   * @var array
-   */
-  private $settings = [];
   
   /**
    * The descriptor for the core package.
@@ -65,6 +59,19 @@ class Core implements SingletonInterface
   private $instanceLoaders = [];
   
   /**
+   * A container for the onMainFilesIncluded event callbacks.
+   * @var Closure[]
+   */
+  private $includeCallbacks = [];
+  
+  /**
+   * Holds the results of any JSON file that was parsed via the parseJsonFromFile method.
+   * @see Core::parseJsonFromFile() for information about what this property is for.
+   * @var array
+   */
+  private $cachedJSON = [];
+  
+  /**
    * Creates the PackageDescriptor for the core package and loads the settings.
    */
   public function __construct()
@@ -76,16 +83,13 @@ class Core implements SingletonInterface
     //Create a PackageDescriptor for ourselves.
     $descriptor = new PackageDescriptor([
       'dir' => realpath(__DIR__."/../../../"),
-      'name' => 'core',
+      'root' => 'core',
       'hasMainFile' => true,
       'hasSettingsFile' => true
     ]);
     
     //Store the descriptor.
     $this->packages[] = $this->descriptor = $descriptor;
-    
-    //Store the settings for this package.
-    $this->settings = $this->loadPackageSettings($descriptor);
     
   }
   
@@ -189,10 +193,37 @@ class Core implements SingletonInterface
     $this->instances[$key] = $instance;
     
     //Call the "init" method.
-    $instance->init();
+    $this->initializeInstance($instance);
     
     //Return the instance.
     return $instance;
+    
+  }
+  
+  /**
+   * Calls the `init`-method of an AbstractCore instance.
+   * 
+   * It also stores within the instance that it has been initialized and skips all of
+   * these steps if the instance had been initialized before.
+   *
+   * @param  AbstractCore $instance The instance to call init on.
+   *
+   * @return bool                   Whether init was called.
+   */
+  public function initializeInstance(AbstractCore $instance)
+  {
+    
+    //Return false when the initialized property has already been set to true.
+    if($instance->_initialized !== false){
+      return false;
+    }
+    
+    //Initialize.
+    $instance->init();
+    $instance->_initialized = true;
+    
+    //Return true.
+    return true;
     
   }
   
@@ -243,7 +274,7 @@ class Core implements SingletonInterface
     {
       
       //If this is not a .package, skip it.
-      if(!(is_file("$directory/package.json") || is_dir("$directory/.package"))){
+      if(!is_file("$directory/forall.json")){
         continue;
       }
       
@@ -258,15 +289,32 @@ class Core implements SingletonInterface
       //Create a descriptor for the discovered package.
       $descriptor = new PackageDescriptor([
         'dir' => dirname($directory),
-        'name' => $name,
-        'hasMainFile' => file_exists("$directory/main.php"),
-        'hasSettingsFile' => file_exists("$directory/settings.json")
+        'root' => $name,
+        'hasMainFile' => is_file("$directory/main.php"),
+        'hasSettingsFile' => is_file("$directory/forall.json")
       ]);
+      
+      //Add the new PackageDescriptor to our result.
+      $result[] = $descriptor;
       
     }
     
+    //Merge the result with the already existing packages.
+    $this->packages = array_merge($this->packages, $result);
+    
     //Enable chaining.
     return $this;
+    
+  }
+  
+  /**
+   * Returns the array of all currently discovered packages.
+   * @return PackageDescriptor[] @see Core::$packages
+   */
+  public function getPackages()
+  {
+    
+    return $this->packages;
     
   }
   
@@ -279,6 +327,11 @@ class Core implements SingletonInterface
    */
   public function getPackageByName($name)
   {
+    
+    //Add the Forall vendor name to the name, if it's lacking one.
+    if(strpbrk('.\\/_', $name)===false){
+      $name = "forall.$name";
+    }
     
     //Iterate over the packages to find one with the given name.
     foreach($this->packages as $package){
@@ -293,7 +346,7 @@ class Core implements SingletonInterface
   }
   
   /**
-   * Get the package directories as defined in settings.json, converted to absolute paths.
+   * Get the package directories as defined in forall.json, converted to absolute paths.
    *
    * @return array
    */
@@ -301,12 +354,12 @@ class Core implements SingletonInterface
   {
     
     //Reference the directories to look in from the settings.
-    $directories = $this->settings["packageDirectories"];
+    $directories = $this->descriptor->getSettings()["packageDirectories"];
     
     //Convert them to absolute paths.
     foreach($directories as $i => $directory){
       if($directory{0} !== '/'){
-        $directories[$i] = realpath($this->descriptor->getRoot()."/$directory");
+        $directories[$i] = realpath($this->descriptor->getFullPath()."/$directory");
       }
     }
     
@@ -316,25 +369,45 @@ class Core implements SingletonInterface
   }
   
   /**
-   * Loads the settings from the settings file of the given package, and returns them as an array.
+   * Loads the contents from a given file and parses it as JSON. Returns the result.
+   * 
+   * This method also caches the result so that future requests to the same JSON file can
+   * be returned from the cache. You can always get a freshly parsed result by settings
+   * the `$recache` argument to true.
    *
-   * @param  PackageDescriptor $descriptor The descriptor for the package that the settings will be loaded of.
+   * @param  string  $file    The absolute path to the file.
+   * @param  boolean $recache Whether the previously cached result should be recreated.
+   * 
+   * @throws CoreException If the file does not exist.
+   * @throws CoreException If the JSON was invalid.
    *
-   * @return array
+   * @return array            The parsed JSON.
    */
-  public function loadPackageSettings(PackageDescriptor $descriptor)
+  public function parseJsonFromFile($file, $recache=false)
   {
     
-    //The descriptor must indicate that there is a settings file available.
-    if(!$descriptor->hasSettingsFile()){
-      throw new CoreException("The package does not have a settings file.");
+    //Check the cache if it's wanted and present.
+    if($recache === false && array_key_exists($file, $this->cachedJSON)){
+      return $this->cachedJSON[$file];
     }
     
-    //Build the file name.
-    $settingsFile = $descriptor->getRoot()."/settings.json";
+    //Check if the requested file exists.
+    if(!is_file($file)){
+      throw new CoreException(sprintf('The file given for JSON parsing at "%s" does not exists.', $file));
+    }
     
-    //Return the array.
-    return json_decode(file_get_contents($settingsFile), true);
+    //Attempt to parse the JSON.
+    if(($result = @json_decode(file_get_contents($file), true)) === null){
+      throw new CoreException(sprintf(
+        'The file given for JSON parsing at "%s" could not be parsed.', $file
+      ));
+    }
+    
+    //Cache the result.
+    $this->cachedJSON[$file] = $result;
+    
+    //And return it.
+    return $result;
     
   }
   
@@ -345,6 +418,9 @@ class Core implements SingletonInterface
    */
   public function includeMainFiles()
   {
+    
+    //Reset the event callbacks.
+    $this->includeCallbacks = [];
     
     //Use a FileIncluder to prevent giving away our private scope.
     $includer = new FileIncluder(FileIncluder::STRICT|FileIncluder::ONCE);
@@ -364,12 +440,31 @@ class Core implements SingletonInterface
       }
       
       //Include the file.
-      $includer($descriptor->getRoot()."/main.php");
+      $includer($descriptor->getFullPath()."/main.php");
       
+    }
+    
+    //Call the callbacks.
+    foreach($this->includeCallbacks as $callback){
+      $callback($this);
     }
     
     //Enable chaining.
     return $this;
+    
+  }
+  
+  /**
+   * Register a callback to call after all "main.php" files have been included.
+   * 
+   * @param  Closure $callback The callback. Receives the instance of Core as first argument.
+   *
+   * @return self              Chaining enabled.
+   */
+  public function onMainFilesIncluded(Closure $callback)
+  {
+    
+    $this->includeCallbacks[] = $callback;
     
   }
   

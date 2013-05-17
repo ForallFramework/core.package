@@ -1,11 +1,11 @@
 <?php
 
 /**
- * @package core
+ * @package forall\core
  * @version 0.1
  * @author Avaq <aldwin.vlasblom@gmail.com>
  */
-namespace core\singleton;
+namespace forall\core\singleton;
 
 /**
  * Singleton traits.

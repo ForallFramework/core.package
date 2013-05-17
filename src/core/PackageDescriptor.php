@@ -1,16 +1,16 @@
 <?php
 
 /**
- * @package core
+ * @package forall\core
  * @version 0.1
  * @author Avaq <aldwin.vlasblom@gmail.com>
  */
-namespace core\core;
+namespace forall\core\core;
 
 require_once __DIR__."/../singleton/SingletonInterface.php";
-require_once "CoreException.php";
+require_once __DIR__."/CoreException.php";
 
-use \core\singleton\SingletonInterface;
+use \forall\core\singleton\SingletonInterface;
 
 /**
  * Package descriptor class.
@@ -25,10 +25,10 @@ class PackageDescriptor
   protected $dir;
   
   /**
-   * The name of this package.
+   * The name of the root folder of this package.
    * @var string
    */
-  protected $name;
+  protected $root;
   
   /**
    * If this package has a "main.php" file in its root.
@@ -37,7 +37,7 @@ class PackageDescriptor
   protected $hasMainFile;
   
   /**
-   * If this package has a "settings.json" file in its root.
+   * If this package has a "forall.json" file in its root.
    * @var bool
    */
   protected $hasSettingsFile;
@@ -77,7 +77,7 @@ class PackageDescriptor
   public function getName()
   {
     
-    return $this->name;
+    return (array_key_exists('name', $this->getMeta()) ? $this->getMeta()['name'] : "forall\\{$this->root}");
     
   }
   
@@ -89,7 +89,47 @@ class PackageDescriptor
   public function getRoot()
   {
     
-    return "{$this->dir}/{$this->name}";
+    return $this->root;
+    
+  }
+  
+  /**
+   * Returns the full path to the package directory.
+   *
+   * @return string
+   */
+  public function getFullPath()
+  {
+    
+    return "{$this->dir}/{$this->root}";
+    
+  }
+  
+  /**
+   * Returns the settings parsed from the forall.json file, or false when the file is not present.
+   *
+   * @return array|false
+   */
+  public function getSettings()
+  {
+    
+    if(!$this->hasSettingsFile()){
+      return false;
+    }
+    
+    return Core::getInstance()->parseJsonFromFile($this->getFullPath()."/forall.json");
+    
+  }
+  
+  /**
+   * Returns the package' meta data obtained from the parsed package.json file.
+   *
+   * @return array
+   */
+  public function getMeta()
+  {
+    
+    return Core::getInstance()->parseJsonFromFile($this->getFullPath()."/forall.json");
     
   }
   
@@ -106,7 +146,7 @@ class PackageDescriptor
   }
   
   /**
-   * Returns true if the packages has a "settings.json" file.
+   * Returns true if the packages has a "forall.json" file.
    *
    * @return boolean
    */
