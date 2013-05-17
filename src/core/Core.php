@@ -291,7 +291,7 @@ class Core implements SingletonInterface
         'dir' => dirname($directory),
         'root' => $name,
         'hasMainFile' => is_file("$directory/main.php"),
-        'hasSettingsFile' => is_file("$directory/forall.json")
+        'hasSettingsFile' => is_file("$directory/settings.json")
       ]);
       
       //Add the new PackageDescriptor to our result.
@@ -346,7 +346,7 @@ class Core implements SingletonInterface
   }
   
   /**
-   * Get the package directories as defined in forall.json, converted to absolute paths.
+   * Get the package directories as defined in settings.json, converted to absolute paths.
    *
    * @return array
    */
@@ -385,6 +385,7 @@ class Core implements SingletonInterface
    */
   public function parseJsonFromFile($file, $recache=false)
   {
+    
     
     //Check the cache if it's wanted and present.
     if($recache === false && array_key_exists($file, $this->cachedJSON)){

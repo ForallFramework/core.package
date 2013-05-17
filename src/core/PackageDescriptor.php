@@ -37,7 +37,7 @@ class PackageDescriptor
   protected $hasMainFile;
   
   /**
-   * If this package has a "forall.json" file in its root.
+   * If this package has a "settings.json" file in its root.
    * @var bool
    */
   protected $hasSettingsFile;
@@ -106,7 +106,7 @@ class PackageDescriptor
   }
   
   /**
-   * Returns the settings parsed from the forall.json file, or false when the file is not present.
+   * Returns the settings parsed from the settings.json file, or false when the file is not present.
    *
    * @return array|false
    */
@@ -117,7 +117,7 @@ class PackageDescriptor
       return false;
     }
     
-    return Core::getInstance()->parseJsonFromFile($this->getFullPath()."/forall.json");
+    return Core::getInstance()->parseJsonFromFile($this->getFullPath()."/settings.json");
     
   }
   
@@ -146,7 +146,7 @@ class PackageDescriptor
   }
   
   /**
-   * Returns true if the packages has a "forall.json" file.
+   * Returns true if the packages has a "settings.json" file.
    *
    * @return boolean
    */

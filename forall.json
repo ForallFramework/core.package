@@ -11,5 +11,6 @@
       "changes": []
     }
   ],
+  "sourceDirectory": "src/",
   "dependencies": []
 }
