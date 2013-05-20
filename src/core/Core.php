@@ -273,7 +273,7 @@ class Core implements SingletonInterface
     foreach(glob('{'.implode(',', $directories).'}/*/', GLOB_NOSORT|GLOB_BRACE|GLOB_ONLYDIR) as $directory)
     {
       
-      //If this is not a .package, skip it.
+      //If this is not a package recognised by Forall, skip it.
       if(!is_file("$directory/forall.json")){
         continue;
       }
@@ -329,7 +329,7 @@ class Core implements SingletonInterface
   {
     
     //Normalize the package name.
-    $this->normalizePackageName($name);
+    $name = $this->normalizePackageName($name);
     
     //Iterate over the packages to find one with the given name.
     foreach($this->packages as $package){

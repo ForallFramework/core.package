@@ -77,7 +77,7 @@ class PackageDescriptor
   public function getName()
   {
     
-    return (array_key_exists('name', $this->getMeta()) ? $this->getMeta()['name'] : "forall\\{$this->root}");
+    return (array_key_exists('name', $this->getMeta()) ? $this->getMeta()['name'] : "forall.{$this->root}");
     
   }
   
