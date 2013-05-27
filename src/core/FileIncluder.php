@@ -137,6 +137,9 @@ class FileIncluder
     //Replace the existing closure with a rebound one.
     $this->includer = $this->includer->bindTo($context);
     
+    //Enable chaining
+    return $this;
+    
   }
   
   /**
@@ -155,11 +158,18 @@ class FileIncluder
    * * FLAGS
    *
    * @param array $env The environment.
+   * 
+   * @return self      Chaining enabled.
+   * 
    */
   public function setEnv(array $env)
   {
     
+    //Set the property.
     $this->env = $env;
+    
+    //Enable chaining.
+    return $this;
     
   }
   
