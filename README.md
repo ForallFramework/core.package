@@ -1,4 +1,4 @@
-#Core - Version 0.1 Beta 1
+#Core - Version 0.2 Beta 1
 
 ## Description
 

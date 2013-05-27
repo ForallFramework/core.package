@@ -269,7 +269,7 @@ class Core implements SingletonInterface
     //Create a result array.
     $result = [];
     
-    //Iterate over an array of all possible package folders.
+    //Iterate an array of all possible package folders.
     foreach(glob('{'.implode(',', $directories).'}/*/', GLOB_NOSORT|GLOB_BRACE|GLOB_ONLYDIR) as $directory)
     {
       
@@ -331,7 +331,7 @@ class Core implements SingletonInterface
     //Normalize the package name.
     $name = $this->normalizePackageName($name);
     
-    //Iterate over the packages to find one with the given name.
+    //Iterate the packages to find one with the given name.
     foreach($this->packages as $package){
       if($package->getName() === $name){
         return $package;
@@ -448,7 +448,7 @@ class Core implements SingletonInterface
       'core' => $this
     ]);
     
-    //Iterate over the packages.
+    //Iterate the packages.
     foreach($this->packages as $descriptor)
     {
       

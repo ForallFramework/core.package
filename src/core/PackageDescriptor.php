@@ -50,7 +50,7 @@ class PackageDescriptor
   public function __construct(array $propertyValues = [])
   {
     
-    //Iterate over the given values and call the setProperty method with them.
+    //Iterate the given values and call the setProperty method with them.
     foreach($propertyValues as $name => $value){
       $this->_setProperty($name, $value);
     }
