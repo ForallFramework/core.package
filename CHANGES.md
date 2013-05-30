@@ -1,3 +1,10 @@
+#### [Version 0.2.1 Beta](https://github.com/ForallFramework/core.package/tree/0.2.1-beta)
+_30-May-2013_
+
+* Removed unused data from `forall.json`.
+* Removed version tags from files.
+* Switched to the new @Tuxion versioning standard.
+
 #### [Version 0.2 Beta 1](https://github.com/ForallFramework/core.package/tree/v0.2-beta1)
 _27-May-2013_
 
