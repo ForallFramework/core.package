@@ -1,10 +1,10 @@
 <?php namespace forall\core;
 
-//Include functions.
-require 'src/functions.php';
+//Include autoloader.
+require_once __DIR__."../../autoload.php";
 
-//Include the core class.
-require 'src/core/Core.php';
+//Set response code to 200.
+http_response_code(200);
 
 //Initialize the core class.
 $core = core\Core::getInstance();
@@ -14,7 +14,3 @@ $core->gatherPackages();
 
 //Include other packages' main-files.
 $core->includeMainFiles();
-
-
-#TEMP: Set response code to 200.
-http_response_code(200);

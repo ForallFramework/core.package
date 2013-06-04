@@ -1,0 +1,33 @@
+{
+  
+  "name": "forall/core",
+  "description": "Serves as a main entry point, simple package loader and singleton container.",
+  "license": "MIT",
+  
+  "authors": [
+    {
+      "name": "Aldwin 'Avaq' Vlasblom",
+      "email": "aldwin.vlasblom@gmail.com",
+      "role": "Developer"
+    }
+  ],
+  
+  "support": {
+    "source": "https://github.com/ForallFramework/core.package",
+    "issues": "https://github.com/ForallFramework/core.package/issues"
+  },
+  
+  "require": {
+    "php": ">=5.4.0"
+  },
+  
+  "autoload": {
+    "psr-0": {
+      "forall\\core": "src/"
+    },
+    "files": [
+      "src/forall/core/functions.php"
+    ]
+  }
+  
+}
