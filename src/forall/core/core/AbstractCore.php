@@ -6,8 +6,6 @@
  */
 namespace forall\core\core;
 
-require_once __DIR__."/../singleton/SingletonInterface.php";
-
 use \forall\core\singleton\SingletonInterface;
 
 /**

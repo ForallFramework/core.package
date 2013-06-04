@@ -6,13 +6,6 @@
  */
 namespace forall\core\core;
 
-require_once __DIR__."/AbstractCore.php";
-require_once __DIR__."/CoreException.php";
-require_once __DIR__."/PackageDescriptor.php";
-require_once __DIR__."/FileIncluder.php";
-require_once __DIR__."/../singleton/SingletonTraits.php";
-require_once __DIR__."/../singleton/SingletonInterface.php";
-
 use \forall\core\singleton\SingletonTraits;
 use \forall\core\singleton\SingletonInterface;
 use \Closure;
@@ -81,7 +74,7 @@ class Core implements SingletonInterface
     
     //Create a PackageDescriptor for ourselves.
     $descriptor = new PackageDescriptor([
-      'dir' => realpath(__DIR__."/../../../"),
+      'dir' => realpath(__DIR__."/../../../../../"),
       'root' => 'core',
       'hasMainFile' => true,
       'hasSettingsFile' => true

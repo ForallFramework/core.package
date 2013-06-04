@@ -1,3 +1,12 @@
+#### [Version 0.3.0 Beta](https://github.com/ForallFramework/core.package/tree/0.3.0-beta)
+_4-June-2013_
+
+* Migrated to composer.
+  - Moved all source files to `vendor/packagename` subdirectories.
+  - Added `composer.json` and removed old json files.
+  - Removed custom loading of class files.
+  - Added the inclusion of the composer autoloader.
+
 #### [Version 0.2.1 Beta](https://github.com/ForallFramework/core.package/tree/0.2.1-beta)
 _30-May-2013_
 
