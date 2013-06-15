@@ -1,3 +1,17 @@
+#### [Version 0.4.0 Beta](https://github.com/ForallFramework/core.package/tree/0.4.0-beta)
+_15-June-2013_
+
+* Changed the way the core package uses PackageDescriptor's.
+  - Instead of PackageDescriptors being made for each package straight away, the core now
+    offers an interface for requesting a specific PackageDescriptor to be created.
+  - Instead of requesting an array of packageDescriptors to iterate packages, the core now
+    offers an interface for iterating over all package names.
+* Changed the role of the PackageDescriptor.
+  - Instead of requesting set variables from the PackageDescriptor through static getters,
+    the PackageDescriptor now offers a dynamic getter for each JSON-file in the root of
+    the package.
+* Added `Core::getLoader()` to access the composer ClassLoader instance.
+
 #### [Version 0.3.0 Beta](https://github.com/ForallFramework/core.package/tree/0.3.0-beta)
 _4-June-2013_
 

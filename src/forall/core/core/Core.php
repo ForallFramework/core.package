@@ -6,6 +6,7 @@
  */
 namespace forall\core\core;
 
+use \Composer\Autoload\ClassLoader;
 use \forall\core\singleton\SingletonTraits;
 use \forall\core\singleton\SingletonInterface;
 use \Closure;
@@ -18,25 +19,13 @@ use \Closure;
  * "Core"-classes to pass their instance and a key name for others to request them through
  * Core.
  */
-class Core implements SingletonInterface
+class Core extends AbstractCore
 {
   
   //Use standard singleton code.
   use SingletonTraits{
     __construct as private singletonConstructor;
   }
-  
-  /**
-   * The descriptor for the core package.
-   * @var PackageDescriptor
-   */
-  private $descriptor;
-  
-  /**
-   * Stores information about found packages.
-   * @var PackageDescriptor[]
-   */
-  private $packages = [];
   
   /**
    * Stores all AbstractCore classes.
@@ -64,6 +53,12 @@ class Core implements SingletonInterface
   private $cachedJSON = [];
   
   /**
+   * This will hold the composer loader that was initiated by main.php.
+   * @var ClassLoader
+   */
+  private $loader;
+  
+  /**
    * Creates the PackageDescriptor for the core package and loads the settings.
    */
   public function __construct()
@@ -72,16 +67,52 @@ class Core implements SingletonInterface
     //Call the singleton constructor first.
     $this->singletonConstructor();
     
+    //Then call our own initialize method.
+    $this->registerInstance('core', $this)->initializeInstance($this);
+    
+  }
+  
+  /**
+   * 
+   */
+  public function init()
+  {
+    
     //Create a PackageDescriptor for ourselves.
-    $descriptor = new PackageDescriptor([
-      'dir' => realpath(__DIR__."/../../../../../"),
-      'root' => 'core',
-      'hasMainFile' => true,
-      'hasSettingsFile' => true
-    ]);
+    $descriptor = new PackageDescriptor(realpath(__DIR__."/../../../../"));
     
     //Store the descriptor.
-    $this->packages[] = $this->descriptor = $descriptor;
+    $this->setDescriptor($descriptor);
+    
+  }
+  
+  /**
+   * Set the composer class loader instance.
+   *
+   * @param ClassLoader $loader The composer class loader.
+   * 
+   * @return self Chaining enabled.
+   */
+  public function setLoader(ClassLoader $loader)
+  {
+    
+    //Set the property.
+    $this->loader = $loader;
+    
+    //Enable chaining.
+    return $this;
+    
+  }
+  
+  /**
+   * Get the composer class loader instance.
+   *
+   * @return ClassLoader The composer class loader.
+   */
+  public function getLoader()
+  {
+    
+    return $this->loader;
     
   }
   
@@ -98,6 +129,9 @@ class Core implements SingletonInterface
    */
   public function registerInstance($key, AbstractCore $instance)
   {
+    
+    //All keys are stored in lower case.
+    $key = strtolower($key);
     
     //The key must not be in use.
     if($this->isInstanceKeyUsed($key)){
@@ -135,6 +169,9 @@ class Core implements SingletonInterface
   public function registerInstanceLoader($key, Closure $loader)
   {
     
+    //All keys are stored in lower case.
+    $key = strtolower($key);
+    
     //The key can not already be in use.
     if($this->isInstanceKeyUsed($key)){
       throw new CoreException(sprintf("Can not register any more Core instances with key %s.", $key));
@@ -160,6 +197,9 @@ class Core implements SingletonInterface
    */
   public function loadInstance($key)
   {
+    
+    //All keys are stored in lower case.
+    $key = strtolower($key);
     
     //Instance key must exist.
     if(!$this->isInstanceKeyUsed($key)){
@@ -243,56 +283,45 @@ class Core implements SingletonInterface
   public function isInstanceKeyUsed($key)
   {
     
+    //All keys are stored in lower case.
+    $key = strtolower($key);
+    
+    //Do it.
     return (array_key_exists($key, $this->instances) || array_key_exists($key, $this->instanceLoaders));
     
   }
   
   /**
-   * Finds all packages in the package directories provided by the settings file.
+   * Iterate each directory that passes as a package and call the iterator.
    *
-   * @return self Chaining enabled.
+   * @param  Closure $iterator The callback to call for every package.
+   *                           Receives 3 arguments. The package name, the vendor
+   *                           directory, and the full directory.
+   *
+   * @return self              Chaining enabled.
    */
-  public function gatherPackages()
+  public function iteratePackages(Closure $iterator)
   {
     
     //Reference the directories to look in from the settings.
-    $directories = $this->getPackageDirectories();
-    
-    //Create a result array.
-    $result = [];
+    $directories = $this->getVendorDirectories();
     
     //Iterate an array of all possible package folders.
-    foreach(glob('{'.implode(',', $directories).'}/*/', GLOB_NOSORT|GLOB_BRACE|GLOB_ONLYDIR) as $directory)
+    foreach(glob('{'.implode(',', $directories).'}/*/*/', GLOB_NOSORT|GLOB_BRACE|GLOB_ONLYDIR) as $directory)
     {
       
-      //If this is not a package recognised by Forall, skip it.
-      if(!is_file("$directory/forall.json")){
-        continue;
-      }
-      
       //Extract the package name.
-      $name = basename($directory);
+      $name = basename(dirname($directory)).'/'.basename($directory);
       
-      //Check if we already have a package by this name, if we do, skip the rest.
-      if($this->getPackageByName($name) !== false){
-        continue;
+      //Extract the vendor directory.
+      $vendorDir = dirname(dirname($directory));
+      
+      //Call the iterator. If it returns false, stop the iteration.
+      if($iterator($name, $vendorDir, $directory) === false){
+        break;
       }
-      
-      //Create a descriptor for the discovered package.
-      $descriptor = new PackageDescriptor([
-        'dir' => dirname($directory),
-        'root' => $name,
-        'hasMainFile' => is_file("$directory/main.php"),
-        'hasSettingsFile' => is_file("$directory/settings.json")
-      ]);
-      
-      //Add the new PackageDescriptor to our result.
-      $result[] = $descriptor;
       
     }
-    
-    //Merge the result with the already existing packages.
-    $this->packages = array_merge($this->packages, $result);
     
     //Enable chaining.
     return $this;
@@ -300,38 +329,40 @@ class Core implements SingletonInterface
   }
   
   /**
-   * Returns the array of all currently discovered packages.
-   * @return PackageDescriptor[] @see Core::$packages
-   */
-  public function getPackages()
-  {
-    
-    return $this->packages;
-    
-  }
-  
-  /**
-   * Returns the package of the given name or false when not found.
+   * Create a new PackageDescriptor for the package of the given name.
    *
-   * @param  string $name The name to look for.
+   * @param  string $packageName The name of the package.
    *
-   * @return PackageDescriptor|false
+   * @return PackageDescriptor   The descriptor instance.
    */
-  public function getPackageByName($name)
+  public function createPackageDescriptor($packageName)
   {
     
     //Normalize the package name.
-    $name = $this->normalizePackageName($name);
+    $packageName = $this->normalizePackageName($packageName);
     
-    //Iterate the packages to find one with the given name.
-    foreach($this->packages as $package){
-      if($package->getName() === $name){
-        return $package;
-      }
+    //Create a string for glob.
+    $glob = ''
+      . ('{')
+      . (implode(',', $this->getVendorDirectories()))
+      . ('}/')
+      . ($this->convertPackageNameToDir($packageName));
+    
+    //Get the possible matches.
+    $directories = glob($glob, GLOB_NOSORT|GLOB_BRACE|GLOB_ONLYDIR);
+    
+    //No matches? Package not found.
+    if(empty($directories)){
+      throw new CoreException(sprintf('Package "%s" not found.', $packageName));
     }
     
-    //All packages have been iterated without result. Return false.
-    return false;
+    //Too many matches? Package installed multiple times.
+    if(count($directories) > 1){
+      throw new CoreException(sprintf('Package "%s" found %s times.', $packageName), count($directories));
+    }
+    
+    //Create and return the descriptor.
+    return new PackageDescriptor($directories[0]);
     
   }
   
@@ -347,7 +378,7 @@ class Core implements SingletonInterface
     
     //Add the Forall vendor name to the name, if it's lacking one.
     if(strpbrk('.\\/_', $name)===false){
-      $name = "forall.$name";
+      $name = "forall/$name";
     }
     
     //Return the normalized name.
@@ -356,20 +387,48 @@ class Core implements SingletonInterface
   }
   
   /**
+   * Converts a package name to a name space.
+   *
+   * @param  string $name
+   *
+   * @return string       The name space.
+   */
+  public function convertPackageNameToNs($name)
+  {
+    
+    return str_replace(['.', '\\', '/', '_'], '\\', $name);
+    
+  }
+  
+  /**
+   * Converts a package name to a directory.
+   *
+   * @param  string $name
+   *
+   * @return string       The directory.
+   */
+  public function convertPackageNameToDir($name)
+  {
+    
+    return str_replace(['.', '\\', '/', '_'], DIRECTORY_SEPARATOR, $name);
+    
+  }
+  
+  /**
    * Get the package directories as defined in settings.json, converted to absolute paths.
    *
    * @return array
    */
-  public function getPackageDirectories()
+  public function getVendorDirectories()
   {
     
     //Reference the directories to look in from the settings.
-    $directories = $this->descriptor->getSettings()["packageDirectories"];
+    $directories = $this->getDescriptor()->settings['vendorDirectories'];
     
     //Convert them to absolute paths.
     foreach($directories as $i => $directory){
       if($directory{0} !== '/'){
-        $directories[$i] = realpath($this->descriptor->getFullPath()."/$directory");
+        $directories[$i] = realpath($this->getDescriptor()->getDir()."/$directory");
       }
     }
     
@@ -441,18 +500,17 @@ class Core implements SingletonInterface
     ]);
     
     //Iterate the packages.
-    foreach($this->packages as $descriptor)
-    {
+    $this->iteratePackages(function($name, $vendor, $dir)use($includer){
       
       //Skip this package if it hasn't got a main-file.
-      if(!$descriptor->hasMainFile()){
-        continue;
+      if(!file_exists("$dir/main.php")){
+        return true;
       }
       
       //Include the file.
-      $includer($descriptor->getFullPath()."/main.php");
+      $includer("$dir/main.php");
       
-    }
+    });
     
     //Call the callbacks.
     foreach($this->includeCallbacks as $callback){

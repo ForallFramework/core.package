@@ -21,35 +21,44 @@ class PackageDescriptor
   protected $dir;
   
   /**
-   * The name of the root folder of this package.
-   * @var string
-   */
-  protected $root;
-  
-  /**
-   * If this package has a "main.php" file in its root.
-   * @var bool
-   */
-  protected $hasMainFile;
-  
-  /**
-   * If this package has a "settings.json" file in its root.
-   * @var bool
-   */
-  protected $hasSettingsFile;
-  
-  /**
-   * Set some initial values.
+   * Construct a PackageDescriptor by giving it the package directory.
    *
-   * @param array $propertyValues An array like `[$propertyName => $propertyValue, ..].
+   * @param string $dir The directory of the package.
    */
-  public function __construct(array $propertyValues = [])
+  public function __construct($dir)
   {
     
-    //Iterate the given values and call the setProperty method with them.
-    foreach($propertyValues as $name => $value){
-      $this->_setProperty($name, $value);
-    }
+    $this->dir = $dir;
+    
+  }
+  
+  /**
+   * An alias of self::getJson($key).
+   *
+   * @see self::getJson()
+   *
+   * @param  string $key
+   *
+   * @return array
+   */
+  public function __get($key)
+  {
+    
+    return $this->getJson($key);
+    
+  }
+  
+  /**
+   * Returns the decoded JSON file of the given name.
+   *
+   * @param  string $fileName The name of the JSON file without extension.
+   *
+   * @return array            The decoded JSON data.
+   */
+  public function getJson($fileName)
+  {
+    
+    return forall('core')->parseJsonFromFile($this->getDir().DIRECTORY_SEPARATOR.$fileName.'.json');
     
   }
   
@@ -66,82 +75,6 @@ class PackageDescriptor
   }
   
   /**
-   * Return the name.
-   *
-   * @return string
-   */
-  public function getName()
-  {
-    
-    return (array_key_exists('name', $this->getMeta()) ? $this->getMeta()['name'] : "forall.{$this->root}");
-    
-  }
-  
-  /**
-   * Return the root folder of this package.
-   *
-   * @return string
-   */
-  public function getRoot()
-  {
-    
-    return $this->root;
-    
-  }
-  
-  /**
-   * Returns the full path to the package directory.
-   *
-   * @return string
-   */
-  public function getFullPath()
-  {
-    
-    return "{$this->dir}/{$this->root}";
-    
-  }
-  
-  /**
-   * Returns the settings parsed from the settings.json file, or false when the file is not present.
-   *
-   * @return array|false
-   */
-  public function getSettings()
-  {
-    
-    if(!$this->hasSettingsFile()){
-      return false;
-    }
-    
-    return Core::getInstance()->parseJsonFromFile($this->getFullPath()."/settings.json");
-    
-  }
-  
-  /**
-   * Returns the package' meta data obtained from the parsed package.json file.
-   *
-   * @return array
-   */
-  public function getMeta()
-  {
-    
-    return Core::getInstance()->parseJsonFromFile($this->getFullPath()."/forall.json");
-    
-  }
-  
-  /**
-   * Returns true if the package has a "main.php" file.
-   *
-   * @return boolean
-   */
-  public function hasMainFile()
-  {
-    
-    return !! $this->hasMainFile;
-    
-  }
-  
-  /**
    * Returns true if the packages has a "settings.json" file.
    *
    * @return boolean
@@ -149,39 +82,7 @@ class PackageDescriptor
   public function hasSettingsFile()
   {
     
-    return !! $this->hasSettingsFile;
-    
-  }
-  
-  /**
-   * Set one of the descriptive properties.
-   *
-   * @param string $name  The name of the property to set.
-   * @param [type] $value [description]
-   * 
-   * @throws coreException If the property does not exist.
-   * @throws coreException If the property has already been set.
-   * 
-   * @return self Chaining enabled.
-   */
-  public function _setProperty($name, $value)
-  {
-    
-    //The property must exists.
-    if(!property_exists($this, $name)){
-      throw new coreException(sprintf("Property %s does not exist.", $name));
-    }
-    
-    //The property must not yet have been set.
-    if(isset($this->{$name})){
-      throw new coreException(sprintf("Property %s has already been set.", $name));
-    }
-    
-    //Set the property.
-    $this->{$name} = $value;
-    
-    //Enable chaining.
-    return $this;
+    return file_exists($this->getDir().'/settings.json');
     
   }
   
