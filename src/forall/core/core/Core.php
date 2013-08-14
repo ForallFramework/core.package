@@ -6,9 +6,11 @@
  */
 namespace forall\core\core;
 
-use \Composer\Autoload\ClassLoader;
 use \forall\core\singleton\SingletonTraits;
 use \forall\core\singleton\SingletonInterface;
+use \Composer\Autoload\ClassLoader;
+use \Monolog\Logger;
+use \Monolog\Handler\RotatingFileHandler;
 use \Closure;
 
 /**
@@ -46,17 +48,16 @@ class Core extends AbstractCore
   private $includeCallbacks = [];
   
   /**
-   * Holds the results of any JSON file that was parsed via the parseJsonFromFile method.
-   * @see Core::parseJsonFromFile() for information about what this property is for.
-   * @var array
-   */
-  private $cachedJSON = [];
-  
-  /**
    * This will hold the composer loader that was initiated by main.php.
    * @var ClassLoader
    */
   private $loader;
+  
+  /**
+   * The system logger.
+   * @var Logger
+   */
+  private $logger;
   
   /**
    * Creates the PackageDescriptor for the core package and loads the settings.
@@ -73,7 +74,7 @@ class Core extends AbstractCore
   }
   
   /**
-   * 
+   * Set up read-only properties.
    */
   public function init()
   {
@@ -83,6 +84,32 @@ class Core extends AbstractCore
     
     //Store the descriptor.
     $this->setDescriptor($descriptor);
+    
+    //Create the system logger.
+    $logger = new Logger('system_log');
+    
+    //Push a file handler?
+    if($descriptor->settings['logFile'] !== false){
+      $logger->pushHandler(new RotatingFileHandler($descriptor->settings['logFile']));
+    }
+    
+    //The logger has been set up.
+    $logger->info('System logger has been set up.');
+    
+    //Store the logger.
+    $this->logger = $logger;
+    
+  }
+  
+  /**
+   * Return the system logger object.
+   *
+   * @return Logger
+   */
+  public function getSystemLogger()
+  {
+    
+    return $this->logger;
     
   }
   
@@ -250,9 +277,14 @@ class Core extends AbstractCore
       return false;
     }
     
+    //Log this for debug.
+    if($this->logger){
+      $this->logger->debug(sprintf('Initializing `%s`.', get_class($instance)));
+    }
+    
     //Initialize.
-    $instance->init();
     $instance->_initialized = true;
+    $instance->init();
     
     //Return true.
     return true;
@@ -438,49 +470,6 @@ class Core extends AbstractCore
   }
   
   /**
-   * Loads the contents from a given file and parses it as JSON. Returns the result.
-   * 
-   * This method also caches the result so that future requests to the same JSON file can
-   * be returned from the cache. You can always get a freshly parsed result by settings
-   * the `$recache` argument to true.
-   *
-   * @param  string  $file    The absolute path to the file.
-   * @param  boolean $recache Whether the previously cached result should be recreated.
-   * 
-   * @throws CoreException If the file does not exist.
-   * @throws CoreException If the JSON was invalid.
-   *
-   * @return array            The parsed JSON.
-   */
-  public function parseJsonFromFile($file, $recache=false)
-  {
-    
-    //Check the cache if it's wanted and present.
-    if($recache === false && array_key_exists($file, $this->cachedJSON)){
-      return $this->cachedJSON[$file];
-    }
-    
-    //Check if the requested file exists.
-    if(!is_file($file)){
-      throw new CoreException(sprintf('The file given for JSON parsing at "%s" does not exists.', $file));
-    }
-    
-    //Attempt to parse the JSON.
-    if(($result = @json_decode(file_get_contents($file), true)) === null){
-      throw new CoreException(sprintf(
-        'The file given for JSON parsing at "%s" could not be parsed.', $file
-      ));
-    }
-    
-    //Cache the result.
-    $this->cachedJSON[$file] = $result;
-    
-    //And return it.
-    return $result;
-    
-  }
-  
-  /**
    * Calls the "main.php" file on all currently found packages that have one that hasn't been included yet.
    *
    * @return self Chaining enabled.
@@ -507,15 +496,24 @@ class Core extends AbstractCore
         return true;
       }
       
+      //Log.
+      $this->logger->debug(sprintf('Including "%s" main file.', $name));
+      
       //Include the file.
       $includer("$dir/main.php");
       
     });
     
+    //Log.
+    $this->logger->debug('All main files are executed. Now calling callbacks.');
+    
     //Call the callbacks.
     foreach($this->includeCallbacks as $callback){
       $callback($this);
     }
+    
+    //Log.
+    $this->logger->info('Completed includeMainFiles.');
     
     //Enable chaining.
     return $this;

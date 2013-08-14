@@ -1,3 +1,4 @@
 {
-  "vendorDirectories": ["../../"]
+  "vendorDirectories": ["../../"],
+  "logFile": "/var/www/Forall/logs/daily.log"
 }

@@ -58,7 +58,7 @@ class PackageDescriptor
   public function getJson($fileName)
   {
     
-    return forall('core')->parseJsonFromFile($this->getDir().DIRECTORY_SEPARATOR.$fileName.'.json');
+    return Utils::parseJsonFromFile($this->getDir().DIRECTORY_SEPARATOR.$fileName.'.json');
     
   }
   

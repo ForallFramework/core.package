@@ -1,4 +1,4 @@
-#Core - Version 0.4.0 Beta
+#Core - Version 0.5.0 Beta
 
 ## Description
 
@@ -9,7 +9,8 @@ This package serves as a main entry point for the system. It performs the follow
 * Allows packages to register specific classes as part of the core, allowing them to be
   accessed easily via a helper function in the global scope.
 * Comes with a small library for creating singletons.
-* Comes with a utility class that assists in including files in a safe way.
+* Comes with a  small utility library that assists in including files in a safe way and
+  some other helpful things.
 
 ## Change log
 

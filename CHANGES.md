@@ -1,3 +1,9 @@
+#### [Version 0.5.0 Beta](https://github.com/ForallFramework/core.package/tree/0.5.0-beta)
+_14-Aug-2013_
+
+* Separated core utility functions into a Utils class.
+* Implemented Monolog  logging.
+
 #### [Version 0.4.0 Beta](https://github.com/ForallFramework/core.package/tree/0.4.0-beta)
 _15-June-2013_
 
