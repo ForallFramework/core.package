@@ -37,10 +37,10 @@ class FileIncluder
    *
    * @param integer      $flags   Bitmap of options.
    * @param object|null  $context An initial context may be passed.
-   * 
+   *
    * @see FileIncluder::setContext() for details about what the `$context` parameter is for.
-   * 
-   */ 
+   *
+   */
   public function __construct($FLAGS = 0, $context = null)
   {
     
@@ -103,7 +103,7 @@ class FileIncluder
    *
    * @param  string $file The path to the file that needs to be included.
    * @param  array  $env  A call-time override of the default environment.
-   * 
+   *
    * @see FileIncluder::setEnv() for details about what the `$env` parameter is for.
    *
    * @return mixed        Whatever the included file returns will be returned.
@@ -117,12 +117,12 @@ class FileIncluder
   
   /**
    * Set the context object that the file will be included with.
-   * 
+   *
    * This determines the value of the `$this`-variable within the included file.
    * If null is given, `setContext` will create an empty StdClass object to use as context.
    *
    * @param object|null $context
-   * 
+   *
    * @return self Chaining enabled.
    */
   public function setContext($context)
@@ -143,23 +143,23 @@ class FileIncluder
   
   /**
    * Sets a default environment for the include.
-   * 
+   *
    * The environment is an associative array of variables that will be available inside
    * the included file. For example, if the array would have a `'foo' => 'bar'` pair, the
    * code in the included file may access it through `$foo`.
-   * 
+   *
    * Unfortunately there are some reserved variable names (note that the casing is
    * intentional, the lower-case equivalents of these words are __not__ reserved):
-   * 
+   *
    * * INCLUDEFILE
    * * USERENV
    * * DEFAULTENV
    * * FLAGS
    *
    * @param array $env The environment.
-   * 
+   *
    * @return self      Chaining enabled.
-   * 
+   *
    */
   public function setEnv(array $env)
   {

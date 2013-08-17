@@ -1,3 +1,13 @@
+#### [Version 0.5.1 Beta](https://github.com/ForallFramework/core.package/tree/0.5.1-beta)
+_17-Aug-2013_
+
+* Added the defaultTimezone and overrideServerTimezone settings to the core package for
+  servers that do not have this configured.
+* Added the useSingleLogFile setting for servers that have their own log file handlers.
+* Added a JSON minifyer to allow for comments in JSON files.
+* Added comments to the settings.json file.
+* Removed trailing white-spaces throughout.
+
 #### [Version 0.5.0 Beta](https://github.com/ForallFramework/core.package/tree/0.5.0-beta)
 _14-Aug-2013_
 

@@ -28,7 +28,7 @@ abstract class AbstractCore implements SingletonInterface
   
   /**
    * Should initialize the class. Is allowed to have calls to external classes unlike __construct.
-   * 
+   *
    * @return void
    */
   abstract public function init();

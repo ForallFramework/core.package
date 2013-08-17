@@ -11,11 +11,12 @@ use \forall\core\singleton\SingletonInterface;
 use \Composer\Autoload\ClassLoader;
 use \Monolog\Logger;
 use \Monolog\Handler\RotatingFileHandler;
+use \Monolog\Handler\StreamHandler;
 use \Closure;
 
 /**
  * Core class.
- * 
+ *
  * Searches through folders to find all packages and maps them so their names and paths
  * may be requested and calls their main.php files. Also allows packages that define
  * "Core"-classes to pass their instance and a key name for others to request them through
@@ -85,12 +86,26 @@ class Core extends AbstractCore
     //Store the descriptor.
     $this->setDescriptor($descriptor);
     
+    //Set the default time-zone if necessary.
+    if($descriptor->settings['overrideServerTimezone'] || empty(ini_get('date.timezone'))){
+      if(!date_default_timezone_set($descriptor->settings['defaultTimezone'])){
+        throw new CoreException(sprintf(
+          'Failed to set the default timezone to: %s.',
+          $descriptor->settings['defaultTimezone']
+        ));
+      }
+    }
+    
     //Create the system logger.
     $logger = new Logger('system_log');
     
     //Push a file handler?
     if($descriptor->settings['logFile'] !== false){
-      $logger->pushHandler(new RotatingFileHandler($descriptor->settings['logFile']));
+      if($descriptor->settings['useSingleLogFile'] === true){
+        $logger->pushHandler(new StreamHandler($descriptor->settings['logFile']));
+      }else{
+        $logger->pushHandler(new RotatingFileHandler($descriptor->settings['logFile']));
+      }
     }
     
     //The logger has been set up.
@@ -117,7 +132,7 @@ class Core extends AbstractCore
    * Set the composer class loader instance.
    *
    * @param ClassLoader $loader The composer class loader.
-   * 
+   *
    * @return self Chaining enabled.
    */
   public function setLoader(ClassLoader $loader)
@@ -148,7 +163,7 @@ class Core extends AbstractCore
    *
    * @param  string        $key      The key that the instance is registered under.
    * @param  AbstractCore $instance The Core-class.
-   * 
+   *
    * @throws CoreException If the key is already in use.
    * @throws CoreException If the instance has already been registered.
    *
@@ -182,15 +197,15 @@ class Core extends AbstractCore
   
   /**
    * Register a loader for a Core instance.
-   * 
+   *
    * Register a closure that will be called and expected to return an AbstractCore
    * instance when an instance of that key is first requested.
-   * 
+   *
    * @param  string   $key    The key the instance should be stored under.
    * @param  Closure  $loader An anonymous function that should return an instance of AbstractCore.
-   * 
+   *
    * @throws CoreException If the key is already in use.
-   * 
+   *
    * @return self             Chaining enabled.
    */
   public function registerInstanceLoader($key, Closure $loader)
@@ -216,7 +231,7 @@ class Core extends AbstractCore
    * Load the instance that has been registered under the given key.
    *
    * @param  string $key
-   * 
+   *
    * @throws CoreException If no instances with the given key are registered.
    * @throws CoreException If the used instanceLoader does not return an AbstractCore object.
    *
@@ -261,7 +276,7 @@ class Core extends AbstractCore
   
   /**
    * Calls the `init`-method of an AbstractCore instance.
-   * 
+   *
    * It also stores within the instance that it has been initialized and skips all of
    * these steps if the instance had been initialized before.
    *
@@ -307,9 +322,9 @@ class Core extends AbstractCore
   
   /**
    * Returns true when the given key has been registered as an instance or instanceLoader.
-   * 
+   *
    * @param  string  $key
-   * 
+   *
    * @return boolean
    */
   public function isInstanceKeyUsed($key)
@@ -522,7 +537,7 @@ class Core extends AbstractCore
   
   /**
    * Register a callback to call after all "main.php" files have been included.
-   * 
+   *
    * @param  Closure $callback The callback. Receives the instance of Core as first argument.
    *
    * @return self              Chaining enabled.

@@ -18,20 +18,21 @@ class Utils
   
   /**
    * Loads the contents from a given file and parses it as JSON. Returns the result.
-   * 
+   *
    * This method also caches the result so that future requests to the same JSON file can
    * be returned from the cache. You can always get a freshly parsed result by settings
    * the `$recache` argument to true.
    *
-   * @param  string  $file    The absolute path to the file.
-   * @param  boolean $recache Whether the previously cached result should be recreated.
-   * 
+   * @param string $file    The absolute path to the file.
+   * @param boolean $recache Whether the previously cached result should be recreated.
+   * @param boolean $noMinify Whether to skip minifying the input.
+   *
    * @throws CoreException If the file does not exist.
    * @throws CoreException If the JSON was invalid.
    *
    * @return array            The parsed JSON.
    */
-  public static function parseJsonFromFile($file, $recache=false)
+  public static function parseJsonFromFile($file, $recache=false, $noMinify=false)
   {
     
     //Check the cache if it's wanted and present.
@@ -45,7 +46,11 @@ class Utils
     }
     
     //Attempt to parse the JSON.
-    elseif(($result = @json_decode(file_get_contents($file), true)) === null){
+    elseif(($result = @json_decode(($noMinify
+      ? file_get_contents($file)
+      : json_minify(file_get_contents($file)))
+    , true)) === null)
+    {
       throw new CoreException(sprintf(
         'The file given for JSON parsing at "%s" could not be parsed.', $file
       ));

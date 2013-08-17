@@ -27,7 +27,8 @@
       "forall\\core": "src/"
     },
     "files": [
-      "src/forall/core/functions.php"
+      "src/forall/core/functions.php",
+      "lib/minify.json.php"
     ]
   }
   
