@@ -1,3 +1,8 @@
+#### [Version 0.5.2 Beta](https://github.com/ForallFramework/core.package/tree/0.5.2-beta)
+_19-Aug-2013_
+
+* Removed out-of-place HTTP function.
+
 #### [Version 0.5.1 Beta](https://github.com/ForallFramework/core.package/tree/0.5.1-beta)
 _17-Aug-2013_
 
