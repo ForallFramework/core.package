@@ -9,20 +9,12 @@ namespace forall\core\core;
 use \forall\core\singleton\SingletonTraits;
 use \forall\core\singleton\SingletonInterface;
 use \Composer\Autoload\ClassLoader;
-use \Monolog\Logger;
-use \Monolog\Handler\RotatingFileHandler;
-use \Monolog\Handler\StreamHandler;
 use \Closure;
 
 /**
  * Core class.
- *
- * Searches through folders to find all packages and maps them so their names and paths
- * may be requested and calls their main.php files. Also allows packages that define
- * "Core"-classes to pass their instance and a key name for others to request them through
- * Core.
  */
-class Core extends AbstractCore
+class Core implements SingletonInterface
 {
   
   //Use standard singleton code.
@@ -37,16 +29,10 @@ class Core extends AbstractCore
   private $instances = [];
   
   /**
-   * Stores AbstractCore loader functions for lazy-loading.
+   * A container for the onIncluded event callbacks.
    * @var Closure[]
    */
-  private $instanceLoaders = [];
-  
-  /**
-   * A container for the onMainFilesIncluded event callbacks.
-   * @var Closure[]
-   */
-  private $includeCallbacks = [];
+  private $initCallbacks = [];
   
   /**
    * This will hold the composer loader that was initiated by main.php.
@@ -55,10 +41,28 @@ class Core extends AbstractCore
   private $loader;
   
   /**
-   * The system logger.
-   * @var Logger
+   * Contains a FileIncluder instance with $core in its environment.
+   * @var FileIncluder
    */
-  private $logger;
+  private $includer;
+  
+  /**
+   * The names of the packages currently being initialized.
+   * @var string|null
+   */
+  private $initializing = [];
+  
+  /**
+   * An array of package names that have been initialized.
+   * @var string[]
+   */
+  private $initialized = [];
+  
+  /**
+   * The PackageDescriptor instance for the core package.
+   * @var PackageDescriptor
+   */
+  private $descriptor;
   
   /**
    * Creates the PackageDescriptor for the core package and loads the settings.
@@ -69,62 +73,29 @@ class Core extends AbstractCore
     //Call the singleton constructor first.
     $this->singletonConstructor();
     
-    //Then call our own initialize method.
-    $this->registerInstance('core', $this)->initializeInstance($this);
-    
-  }
-  
-  /**
-   * Set up read-only properties.
-   */
-  public function init()
-  {
-    
     //Create a PackageDescriptor for ourselves.
-    $descriptor = new PackageDescriptor(realpath(__DIR__."/../../../../"));
-    
-    //Store the descriptor.
-    $this->setDescriptor($descriptor);
+    $this->descriptor = $descriptor = PackageDescriptor::describe(realpath(__DIR__."/../../../../"));
     
     //Set the default time-zone if necessary.
-    if($descriptor->settings['overrideServerTimezone'] || empty(ini_get('date.timezone'))){
-      if(!date_default_timezone_set($descriptor->settings['defaultTimezone'])){
+    if($descriptor->overrideServerTimezone || empty(ini_get('date.timezone'))){
+      if(!date_default_timezone_set($descriptor->defaultTimezone)){
         throw new CoreException(sprintf(
           'Failed to set the default timezone to: %s.',
-          $descriptor->settings['defaultTimezone']
+          $descriptor->defaultTimezone
         ));
       }
     }
     
-    //Create the system logger.
-    $logger = new Logger('system_log');
+    //Create a FileIncluder to prevent giving away our private scope.
+    $includer = new FileIncluder(FileIncluder::STRICT|FileIncluder::ONCE);
     
-    //Push a file handler?
-    if($descriptor->settings['logFile'] !== false){
-      if($descriptor->settings['useSingleLogFile'] === true){
-        $logger->pushHandler(new StreamHandler($descriptor->settings['logFile']));
-      }else{
-        $logger->pushHandler(new RotatingFileHandler($descriptor->settings['logFile']));
-      }
-    }
+    //Give our public scope as $core.
+    $includer->setEnv([
+      'core' => $this
+    ]);
     
-    //The logger has been set up.
-    $logger->info('System logger has been set up.');
-    
-    //Store the logger.
-    $this->logger = $logger;
-    
-  }
-  
-  /**
-   * Return the system logger object.
-   *
-   * @return Logger
-   */
-  public function getSystemLogger()
-  {
-    
-    return $this->logger;
+    //Store it for common use.
+    $this->includer = $includer;
     
   }
   
@@ -159,150 +130,51 @@ class Core extends AbstractCore
   }
   
   /**
+   * Return the full absolute path to the forall packages directory.
+   * @return string
+   */
+  public function getForallDirectory()
+  {
+    
+    return realpath(__DIR__."/../../../../../");
+    
+  }
+  
+  /**
    * Register a Core class under the given key.
    *
-   * @param  string        $key      The key that the instance is registered under.
-   * @param  AbstractCore $instance The Core-class.
+   * @param  string $key The key that the instance is registered under.
+   * @param  object $instance The Core-class.
    *
+   * @throws CoreException If an instance is being registered outside of a package initialization.
    * @throws CoreException If the key is already in use.
-   * @throws CoreException If the instance has already been registered.
    *
-   * @return self                    Chaining enabled.
+   * @return self Chaining enabled.
    */
-  public function registerInstance($key, AbstractCore $instance)
+  public function register($key, $instance)
   {
     
-    //All keys are stored in lower case.
-    $key = strtolower($key);
+    //Get the initializing package name.
+    $packageName = end($this->initializing);
     
-    //The key must not be in use.
+    //We have to be initializing a package.
+    if(!$packageName){
+      throw new CoreException("Can not register instances (not even $key) outside init.php.");
+    }
+    
+    //Create the full name-spaced key.
+    $key = "$packageName.$key";
+    
+    //The key may not be taken.
     if($this->isInstanceKeyUsed($key)){
-      throw new CoreException(sprintf("Can not register any more Core instances with key %s.", $key));
+      throw new CoreException(sprintf("Can not register any more instances with key %s.", $key));
     }
     
-    //The instance may only be registered once.
-    if($this->isInstanceRegistered($instance)){
-      throw new CoreException(sprintf(
-        "The given object(%s) has already been registered.", get_class($instance)
-      ));
-    }
-    
-    //Store the instance.
+    //Set.
     $this->instances[$key] = $instance;
     
     //Enable chaining.
     return $this;
-    
-  }
-  
-  /**
-   * Register a loader for a Core instance.
-   *
-   * Register a closure that will be called and expected to return an AbstractCore
-   * instance when an instance of that key is first requested.
-   *
-   * @param  string   $key    The key the instance should be stored under.
-   * @param  Closure  $loader An anonymous function that should return an instance of AbstractCore.
-   *
-   * @throws CoreException If the key is already in use.
-   *
-   * @return self             Chaining enabled.
-   */
-  public function registerInstanceLoader($key, Closure $loader)
-  {
-    
-    //All keys are stored in lower case.
-    $key = strtolower($key);
-    
-    //The key can not already be in use.
-    if($this->isInstanceKeyUsed($key)){
-      throw new CoreException(sprintf("Can not register any more Core instances with key %s.", $key));
-    }
-    
-    //Store the loader.
-    $this->instanceLoaders[$key] = $loader;
-    
-    //Enable chaining.
-    return $this;
-    
-  }
-  
-  /**
-   * Load the instance that has been registered under the given key.
-   *
-   * @param  string $key
-   *
-   * @throws CoreException If no instances with the given key are registered.
-   * @throws CoreException If the used instanceLoader does not return an AbstractCore object.
-   *
-   * @return AbstractCore
-   */
-  public function loadInstance($key)
-  {
-    
-    //All keys are stored in lower case.
-    $key = strtolower($key);
-    
-    //Instance key must exist.
-    if(!$this->isInstanceKeyUsed($key)){
-      throw new CoreException(sprintf("No instances with key '%s' are registered.", $key));
-    }
-    
-    //Return an already loaded instance?
-    if(array_key_exists($key, $this->instances)){
-      return $this->instances[$key];
-    }
-    
-    //Load the instance.
-    $instance = $this->instanceLoaders[$key]();
-    
-    //Validate the instance.
-    if(!($instance instanceof AbstractCore)){
-      throw new CoreException(sprintf(
-        "The instance loader with key %s does not return a Core instance.", $key
-      ));
-    }
-    
-    //Store the instance.
-    $this->instances[$key] = $instance;
-    
-    //Call the "init" method.
-    $this->initializeInstance($instance);
-    
-    //Return the instance.
-    return $instance;
-    
-  }
-  
-  /**
-   * Calls the `init`-method of an AbstractCore instance.
-   *
-   * It also stores within the instance that it has been initialized and skips all of
-   * these steps if the instance had been initialized before.
-   *
-   * @param  AbstractCore $instance The instance to call init on.
-   *
-   * @return bool                   Whether init was called.
-   */
-  public function initializeInstance(AbstractCore $instance)
-  {
-    
-    //Return false when the initialized property has already been set to true.
-    if($instance->_initialized !== false){
-      return false;
-    }
-    
-    //Log this for debug.
-    if($this->logger){
-      $this->logger->debug(sprintf('Initializing `%s`.', get_class($instance)));
-    }
-    
-    //Initialize.
-    $instance->_initialized = true;
-    $instance->init();
-    
-    //Return true.
-    return true;
     
   }
   
@@ -313,7 +185,7 @@ class Core extends AbstractCore
    *
    * @return boolean
    */
-  public function isInstanceRegistered(AbstractCore $instance)
+  public function isInstanceRegistered($instance)
   {
     
     return (array_search($instance, $this->instances) !== false);
@@ -330,11 +202,63 @@ class Core extends AbstractCore
   public function isInstanceKeyUsed($key)
   {
     
-    //All keys are stored in lower case.
-    $key = strtolower($key);
+    return array_key_exists(strtolower($key), $this->instances);
     
-    //Do it.
-    return (array_key_exists($key, $this->instances) || array_key_exists($key, $this->instanceLoaders));
+  }
+  
+  /**
+   * Acquire a previously registered instance.
+   *
+   * @param string $key The full key under which the instance was registered.
+   * 
+   * @throws CoreException If the argument is not properly name-spaced.
+   * @throws CoreException If the package is not installed.
+   *
+   * @return object The instance.
+   */
+  public function findInstance($key)
+  {
+    
+    //Make sure the key was properly name-spaced.
+    if(substr_count($key, '.') !== 1){
+      throw new CoreException(
+        'Invalid Argument: Please provide a package name and instance name, separated by a dot.'
+      );
+    }
+    
+    //If the key doesn't exist, we will try to load its package before trying again.
+    if(!$this->isInstanceKeyUsed($key))
+    {
+      
+      //Extract the package name.
+      $packageName = explode('.', $key)[0];
+      
+      //Check if the package exists, if it doesn't there is a problem.
+      if(!$this->getPackageDescriptorByName($packageName)->exists()){
+        throw new CoreException(sprintf(
+          'Could not find the %s instance. The %s package is not installed.',
+          $key,
+          $this->normalizePackageName($packageName)
+        ));
+      }
+      
+      //Check if the package is already initialized. In that case the key is wrong.
+      if($this->isInitialized($packageName)){
+        throw new CoreException(sprintf(
+          'The %s package never registered an instance under the %s key.',
+          $this->normalizePackageName($packageName),
+          $key
+        ));
+      }
+      
+      //Initialize the package and try again.
+      $this->_initializePackage($packageName);
+      return $this->findInstance($key);
+      
+    }
+    
+    //Return the result.
+    return $this->instances[$key];
     
   }
   
@@ -350,21 +274,21 @@ class Core extends AbstractCore
   public function iteratePackages(Closure $iterator)
   {
     
-    //Reference the directories to look in from the settings.
-    $directories = $this->getVendorDirectories();
-    
     //Iterate an array of all possible package folders.
-    foreach(glob('{'.implode(',', $directories).'}/*/*/', GLOB_NOSORT|GLOB_BRACE|GLOB_ONLYDIR) as $directory)
+    foreach(glob($this->getVendorDirectory().'/*/*/', GLOB_NOSORT|GLOB_ONLYDIR) as $directory)
     {
       
-      //Extract the package name.
-      $name = basename(dirname($directory)).'/'.basename($directory);
+      //Get the vendor name.
+      $vendor = basename(dirname($directory));
       
-      //Extract the vendor directory.
-      $vendorDir = dirname(dirname($directory));
+      //Get the base package name.
+      $name = basename($directory);
+      
+      //Create the full package name.
+      $fullname = "$vendor/$name";
       
       //Call the iterator. If it returns false, stop the iteration.
-      if($iterator($name, $vendorDir, $directory) === false){
+      if($iterator($fullname, $directory, $vendor, $name) === false){
         break;
       }
       
@@ -376,40 +300,18 @@ class Core extends AbstractCore
   }
   
   /**
-   * Create a new PackageDescriptor for the package of the given name.
+   * Return the PackageDescriptor for the package of the given name.
    *
-   * @param  string $packageName The name of the package.
+   * @param string $name
    *
-   * @return PackageDescriptor   The descriptor instance.
+   * @return PackageDescriptor
    */
-  public function createPackageDescriptor($packageName)
+  public function getPackageDescriptorByName($name)
   {
     
-    //Normalize the package name.
-    $packageName = $this->normalizePackageName($packageName);
-    
-    //Create a string for glob.
-    $glob = ''
-      . ('{')
-      . (implode(',', $this->getVendorDirectories()))
-      . ('}/')
-      . ($this->convertPackageNameToDir($packageName));
-    
-    //Get the possible matches.
-    $directories = glob($glob, GLOB_NOSORT|GLOB_BRACE|GLOB_ONLYDIR);
-    
-    //No matches? Package not found.
-    if(empty($directories)){
-      throw new CoreException(sprintf('Package "%s" not found.', $packageName));
-    }
-    
-    //Too many matches? Package installed multiple times.
-    if(count($directories) > 1){
-      throw new CoreException(sprintf('Package "%s" found %s times.', $packageName), count($directories));
-    }
-    
-    //Create and return the descriptor.
-    return new PackageDescriptor($directories[0]);
+    $name = $this->normalizePackageName($name);
+    $path = $this->getVendorDirectory().'/'.$this->convertPackageNameToDir($name);
+    return PackageDescriptor::describe($path);
     
   }
   
@@ -462,73 +364,49 @@ class Core extends AbstractCore
   }
   
   /**
-   * Get the package directories as defined in settings.json, converted to absolute paths.
-   *
-   * @return array
+   * Get the package directory as defined in settings.json, converted to an absolute path.
+   * @return string
    */
-  public function getVendorDirectories()
+  public function getVendorDirectory()
   {
     
-    //Reference the directories to look in from the settings.
-    $directories = $this->getDescriptor()->settings['vendorDirectories'];
-    
-    //Convert them to absolute paths.
-    foreach($directories as $i => $directory){
-      if($directory{0} !== '/'){
-        $directories[$i] = realpath($this->getDescriptor()->getDir()."/$directory");
-      }
-    }
-    
-    //Return them.
-    return $directories;
+    return realpath($this->descriptor->projectRootDirectory.'/'.$this->descriptor->vendorDirectory);
     
   }
   
   /**
-   * Calls the "main.php" file on all currently found packages that have one that hasn't been included yet.
+   * Initialize all packages by calling their "init.php" files.
    *
    * @return self Chaining enabled.
    */
-  public function includeMainFiles()
+  public function initialize()
   {
     
     //Reset the event callbacks.
-    $this->includeCallbacks = [];
+    $this->initCallbacks = [];
     
-    //Use a FileIncluder to prevent giving away our private scope.
-    $includer = new FileIncluder(FileIncluder::STRICT|FileIncluder::ONCE);
+    //Iterate the explicit load order packages.
+    foreach($this->descriptor->packageLoadOrder as $name){
+      $this->_initializePackage($name);
+    }
     
-    //Give our public scope as $core.
-    $includer->setEnv([
-      'core' => $this
-    ]);
-    
-    //Iterate the packages.
-    $this->iteratePackages(function($name, $vendor, $dir)use($includer){
+    //Iterate the packages by folder structure.
+    $this->iteratePackages(function($fullname, $dir, $vendor, $name){
       
-      //Skip this package if it hasn't got a main-file.
-      if(!file_exists("$dir/main.php")){
+      //Skip this package if it isn't a Forall package.
+      if($vendor !== 'forall'){
         return true;
       }
       
-      //Log.
-      $this->logger->debug(sprintf('Including "%s" main file.', $name));
-      
-      //Include the file.
-      $includer("$dir/main.php");
+      //Initialize the package.
+      $this->_initializePackage($name);
       
     });
     
-    //Log.
-    $this->logger->debug('All main files are executed. Now calling callbacks.');
-    
     //Call the callbacks.
-    foreach($this->includeCallbacks as $callback){
+    foreach($this->initCallbacks as $callback){
       $callback($this);
     }
-    
-    //Log.
-    $this->logger->info('Completed includeMainFiles.');
     
     //Enable chaining.
     return $this;
@@ -536,16 +414,90 @@ class Core extends AbstractCore
   }
   
   /**
-   * Register a callback to call after all "main.php" files have been included.
+   * Initialize a single package.
+   *
+   * @param string $name The name of the package.
+   *
+   * @return self Chaining enabled.
+   */
+  private function _initializePackage($name)
+  {
+    
+    //Skip the package if it has already been initialized.
+    if($this->isInitialized($name)){
+      return $this;
+    }
+    
+    //If this package is already initializing, we have a problem.
+    if(in_array($name, $this->initializing)){
+      throw new CoreException(sprintf(
+        'Failed to initialize "%s". It was dependent on "%s".',
+        $name,
+        implode(
+          '" which in turn was dependent on "', 
+          array_reverse(array_slice($this->initializing, array_search($name, $this->initializing)))
+        )
+      ));
+    }
+    
+    //Set this package to initializing.
+    array_push($this->initializing, $name);
+    
+    //No init file found yet.
+    $init = false;
+    
+    //Get the vendor directory.
+    $vendors = $this->getVendorDirectory();
+    
+    //Check if the package has its own init-file.
+    if(file_exists("$vendors/forall/$name/init.php")){
+      $init = "$vendors/forall/$name/init.php";
+    }
+    
+    //Find out if there is an override init-file available.
+    if(file_exists("$vendors/forall/.initializers/$name.php")){
+      $init = "$vendors/forall/.initializers/$name.php";
+    }
+    
+    //Include the file.
+    if($init){
+      $includer = $this->includer;
+      $includer($init);
+    }
+    
+    //Move from initializing to initialized.
+    array_push($this->initialized, array_pop($this->initializing));
+    
+    //Enable chaining.
+    return $this;
+    
+  }
+  
+  /**
+   * Returns true if the given package is initialized.
+   *
+   * @param string $packageName The name of the package to check.
+   *
+   * @return boolean
+   */
+  public function isInitialized($packageName)
+  {
+    
+    return in_array($packageName, $this->initialized);
+    
+  }
+  
+  /**
+   * Register a callback to call after all "init.php" files have been included.
    *
    * @param  Closure $callback The callback. Receives the instance of Core as first argument.
    *
-   * @return self              Chaining enabled.
+   * @return self Chaining enabled.
    */
-  public function onMainFilesIncluded(Closure $callback)
+  public function onInitialized(Closure $callback)
   {
     
-    $this->includeCallbacks[] = $callback;
+    $this->initCallbacks[] = $callback;
     
   }
   

@@ -10,56 +10,41 @@ class Utils
 {
   
   /**
-   * Holds the results of any JSON file that was parsed via the parseJsonFromFile method.
-   * @see self::parseJsonFromFile() for information about what this property is for.
-   * @var array
-   */
-  private static $cachedJSON = [];
-  
-  /**
    * Loads the contents from a given file and parses it as JSON. Returns the result.
    *
    * This method also caches the result so that future requests to the same JSON file can
    * be returned from the cache. You can always get a freshly parsed result by settings
    * the `$recache` argument to true.
    *
-   * @param string $file    The absolute path to the file.
-   * @param boolean $recache Whether the previously cached result should be recreated.
+   * @param string $file The absolute path to the file.
    * @param boolean $noMinify Whether to skip minifying the input.
-   *
-   * @throws CoreException If the file does not exist.
+   * 
    * @throws CoreException If the JSON was invalid.
    *
-   * @return array            The parsed JSON.
+   * @return array The parsed JSON.
    */
-  public static function parseJsonFromFile($file, $recache=false, $noMinify=false)
+  public static function parseJsonFromFile($file, $noMinify=false)
   {
     
-    //Check the cache if it's wanted and present.
-    if($recache === false && array_key_exists($file, self::$cachedJSON)){
-      return self::$cachedJSON[$file];
-    }
-    
-    //Check if the requested file exists.
+    //Check if the requested file exists. If it doesn't, return an empty array.
     if(!is_file($file)){
-      $result = [];
+      return [];
     }
     
     //Attempt to parse the JSON.
-    elseif(($result = @json_decode(($noMinify
+    $result = @json_decode(($noMinify
       ? file_get_contents($file)
-      : json_minify(file_get_contents($file)))
-    , true)) === null)
-    {
+      : json_minify(file_get_contents($file))
+    ), true);
+    
+    //If JSON failed to parse.
+    if($result === null){
       throw new CoreException(sprintf(
-        'The file given for JSON parsing at "%s" could not be parsed.', $file
+        'The file given for JSON parsing at "%s" could not be parsed. Error: %s', $file, json_last_error_msg()
       ));
     }
     
-    //Cache the result.
-    self::$cachedJSON[$file] = $result;
-    
-    //And return it.
+    //Return the result.
     return $result;
     
   }

@@ -15,15 +15,52 @@ class PackageDescriptor
 {
   
   /**
+   * An array of PackageDescriptors.
+   * @var self[]
+   */
+  private static $instances = [];
+  
+  /**
+   * Factory: Get or create an instance of PackageDescriptor.
+   *
+   * @param string $package_directory The path to the package.
+   *
+   * @return self
+   */
+  public static function describe($packageDirectory)
+  {
+    
+    //Look in the cache.
+    if(array_key_exists($packageDirectory, self::$instances)){
+      return self::$instances[$packageDirectory];
+    }
+    
+    //Create a new instance.
+    self::$instances[$packageDirectory] = $r = new self($packageDirectory);
+    
+    //Return the new instance.
+    return $r;
+    
+  }
+  
+  /**
    * The absolute directory in which this package stands.
    * @var string
    */
   protected $dir;
   
   /**
+   * Cache of settings.
+   * @var array
+   */
+  protected $settings;
+  
+  /**
    * Construct a PackageDescriptor by giving it the package directory.
    *
    * @param string $dir The directory of the package.
+   * 
+   * @see self::describe() - Factory for PackageDescriptor.
    */
   public function __construct($dir)
   {
@@ -33,32 +70,18 @@ class PackageDescriptor
   }
   
   /**
-   * An alias of self::getJson($key).
+   * An alias of self::getSettings()[$key].
    *
-   * @see self::getJson()
+   * @param string $key
    *
-   * @param  string $key
+   * @return mixed
    *
-   * @return array
+   * @see self::getSettings() For more documentation.
    */
   public function __get($key)
   {
     
-    return $this->getJson($key);
-    
-  }
-  
-  /**
-   * Returns the decoded JSON file of the given name.
-   *
-   * @param  string $fileName The name of the JSON file without extension.
-   *
-   * @return array            The decoded JSON data.
-   */
-  public function getJson($fileName)
-  {
-    
-    return Utils::parseJsonFromFile($this->getDir().DIRECTORY_SEPARATOR.$fileName.'.json');
+    return $this->getSettings()[$key];
     
   }
   
@@ -75,14 +98,70 @@ class PackageDescriptor
   }
   
   /**
-   * Returns true if the packages has a "settings.json" file.
+   * Get the folder name this package is in.
    *
-   * @return boolean
+   * @return string
    */
-  public function hasSettingsFile()
+  public function getName()
   {
     
-    return file_exists($this->getDir().'/settings.json');
+    return basename($this->dir);
+    
+  }
+  
+  /**
+   * Returns true if the package is physically present.
+   * @return boolean
+   */
+  public function exists()
+  {
+    
+    return file_exists($this->getDir().'/composer.json');
+    
+  }
+  
+  /**
+   * Return true if this is a Forall package.
+   * @return boolean
+   */
+  public function isForallPackage()
+  {
+    
+    return basename(dirname($this->getDir())) === 'forall';
+    
+  }
+  
+  /**
+   * Get the merged default settings and user settings.
+   * 
+   * @throws CoreException If This package is not a Forall package.
+   *
+   * @return array
+   */
+  public function getSettings($forceRead=false)
+  {
+    
+    //Only works for Forall packages.
+    if(!$this->isForallPackage()){
+      throw new CoreException('Can only get settings of Forall packages.');
+    }
+    
+    //Return from cache?
+    if(!$forceRead && isset($this->settings)){
+      return $this->settings;
+    }
+    
+    //Parse the default settings.
+    $default = Utils::parseJsonFromFile($this->getDir().'/settings.json');
+    
+    //Parse user settings.
+    $user = Utils::parseJsonFromFile(realpath(__DIR__.'/../../../../../.settings/'.$this->getName().'.json'));
+    
+    //Merge and cache the settings.
+    $this->settings = $r = array_merge($default, $user);
+    
+    //Return the result.
+    return $r;
     
   }
   

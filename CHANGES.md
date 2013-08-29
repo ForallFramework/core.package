@@ -1,3 +1,36 @@
+#### [Version 0.6.0 Beta](https://github.com/ForallFramework/core.package/tree/0.6.0-beta)
+_29-Aug-2013_
+
+* Removed AbstractCore. Any type of object may now be registered through the core.
+* Initialization files of packages are now `init.php` and not `main.php`.
+* Removed dependency to Monolog.
+* Removed the AbstractCore class.
+* `Utils::parseJsonFromFile()` No longer caches the results.
+* Settings changes.
+  - Removed `vendorDirectories` to make place for `vendorDirectory`. There can be only one!
+  - Removed `logFile` and `useSingleLogFile`. Logging is no longer handled by core.
+  - Added `projectRootDirectory` and `vendorDirectory`.
+  - Added `packageLoadOrder`, allowing certain packages to be loaded before others.
+* API Changes.
+  - Removed `Core::getSystemLogger()`. Logging is no longer handled by core.
+  - Removed `Core::registerInstanceLoader()`, it wasn't used and is now completely useless.
+  - Removed `Core::initializeInstance()`, instance initialization is handled by the package init files.
+  - Renamed `Core::registerInstance()` to `Core::register()`.
+  - Renamed `Core::loadInstance()` to `Core::findInstance()`.
+  - Renamed `Core::includeMainFiles()` to `Core::initialize()`.
+  - Renamed `Core::onMainFilesIncluded()` to `Core::onInitialized()`.
+  - Added `Core::getForallDirectory()`.
+  - Added `PackageDescriptor::describe()`.
+  - Added `PackageDescriptor::exists()`.
+  - Added `PackageDescriptor::getName()`.
+  - Can now access package settings in PackageDescriptor instances via property get.
+* Gave the environment more power:
+  - The environment can now define override settings in
+    `<vendordir>/forall/.settings/<packagename>.json`.
+  - The environment can now define override initializers in
+    `<vendordir>/forall/.initializers/<packagename>.json`.
+  - The environment is now responsible for calling `Core::initialize()`.
+
 #### [Version 0.5.2 Beta](https://github.com/ForallFramework/core.package/tree/0.5.2-beta)
 _19-Aug-2013_
 

@@ -3,16 +3,17 @@
   //The default time-zone to use when the server is not configured.
   "defaultTimezone": "Europe/London",
   
-  //Whether to use the above time-zone even if the server has one set (in php.ini: "date.timezone").
+  //Whether to use the above time-zone even if the server has one set already.
   "overrideServerTimezone": false,
   
-  //Where to look for packages.
-  "vendorDirectories": ["../../"],
+  //The root directory of the parent project, relative to this package root.
+  "projectRootDirectory": "../../../",
   
-  //The path to the log file.
-  "logFile": "/var/www/Forall/logs/daily.log",
+  //The directory which contains the packages, relative to the root.
+  "vendorDirectory": "vendor/",
   
-  //Whether to use a single log file (rather than creating a new one every day).
-  "useSingleLogFile": false
+  //An array of Forall package names which will be used for loading those packages before
+  //any others, in the order provided.
+  "packageLoadOrder": ["core", "debug"]
   
 }

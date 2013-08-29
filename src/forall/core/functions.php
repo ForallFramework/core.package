@@ -12,14 +12,14 @@ namespace forall\core
    * 
    * Calling this function is short for `core\Core::getInstance()->loadInstance($key)`.
    *
-   * @param  string       $key The key of the instance to look for.
+   * @param  string $key The key of the instance to look for.
    *
-   * @return AbstractCore      The instance.
+   * @return AbstractCore The instance.
    */
   function forall($key)
   {
     
-    return core\Core::getInstance()->loadInstance($key);
+    return core\Core::getInstance()->findInstance($key);
     
   }
   

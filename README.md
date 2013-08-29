@@ -1,11 +1,11 @@
-#Core - Version 0.5.2 Beta
+#Core - Version 0.6.0 Beta
 
 ## Description
 
 The "core" package for the Forall Framework.
 This package serves as a main entry point for the system. It performs the following tasks:
 
-* Deals with finding other packages and accessing their entry points.
+* Deals with finding other packages and accessing their initialization code.
 * Allows packages to register specific classes as part of the core, allowing them to be
   accessed easily via a helper function in the global scope.
 * Comes with a small library for creating singletons.
